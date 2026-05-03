@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Vocabulario Avanzado - Clase</title>
+    
+    <style>
+        :root { --p: #2c3e50; --a: #3498db; --bg: #f4f7f6; --ok: #27ae60; --bad: #e74c3c; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: var(--bg); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            margin: 0; 
+            padding: 20px 0;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        /* Título centrado */
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+            text-align: center;
+        }
+
+        /* Botones para cambiar entre filas */
+        .row-selector {
+            display: flex;
+            gap: 10px;
+            width: 90vw;
+            max-width: 450px;
+            margin-bottom: 15px;
+        }
+
+        .row-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--p);
+            border-radius: 10px;
+            background: white;
+            color: var(--p);
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .row-btn.active {
+            background: var(--p);
+            color: white;
+        }
+
+        .card-container { 
+            perspective: 1000px; 
+            width: 90vw; 
+            max-width: 450px; 
+            height: 300px; 
+            cursor: pointer;
+            touch-action: manipulation; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card { 
+            width: 100%; 
+            height: 100%; 
+            position: relative; 
+            transition: transform 0.4s; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+            border-radius: 15px;
+            transform-style: preserve-3d;
+            -webkit-transform-style: preserve-3d;
+        }
+
+        .card.flipped { transform: rotateY(180deg); }
+
+        .face { 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 25px; 
+            box-sizing: border-box; 
+            border-radius: 15px; 
+            text-align: center; 
+            font-size: 1.4rem;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .front { background: white; color: var(--p); font-weight: bold; border: 2px solid #ddd; }
+        .back { background: var(--a); color: white; transform: rotateY(180deg); font-size: 1.2rem; }
+
+        .controls { 
+            margin-top: 15px;
+            display: flex; 
+            gap: 10px; 
+            width: 90vw; 
+            max-width: 450px;
+        }
+
+        .action-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            width: 90vw;
+            max-width: 450px;
+        }
+
+        button { 
+            flex: 1; 
+            padding: 15px 10px; 
+            border: none; 
+            border-radius: 12px; 
+            background: var(--p); 
+            color: white; 
+            font-size: 1rem; 
+            font-weight: bold;
+            cursor: pointer;
+            touch-action: manipulation; 
+        }
+
+        .btn-know { background: var(--ok); }
+        .btn-dont-know { background: var(--bad); }
+
+        .info { margin-top: 12px; font-weight: bold; color: #7f8c8d; }
+
+        @media (max-height: 600px) {
+            .card-container { height: 220px; }
+            .face { font-size: 1.1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>El Universo y la Tierra</h1>
+
+    <div class="row-selector">
+        <button class="row-btn active" id="btn-fila-no" onclick="setFila('no')">Por aprender (<span id="count-no">0</span>)</button>
+        <button class="row-btn" id="btn-fila-si" onclick="setFila('si')">Ya aprendidas (<span id="count-si">0</span>)</button>
+    </div>
+
+    <div class="card-container" onclick="flip()">
+        <div class="card" id="c">
+            <div class="face front" id="q">Cargando...</div>
+            <div class="face back" id="a">...</div>
+        </div>
+    </div>
+
+    <div class="info" id="status">0 / 0</div>
+
+    <div class="controls">
+        <button onclick="prev()">⬅ Ant.</button>
+        <button onclick="shuffle()">🔀 Mezclar</button>
+        <button onclick="next()">Sig. ➡</button>
+    </div>
+
+    <div class="action-controls" id="eval-controls">
+        <button class="btn-dont-know" onclick="clasificarPalabra(false)">❌ No la sé</button>
+        <button class="btn-know" onclick="clasificarPalabra(true)">✔ Ya la sé</button>
+    </div>
+
+<script>
+    // Tu lista original de palabras
+    const todasLasPalabras = [
+	{q: "astronomía, f.", a: "astronomie"},
+	{q: "astrología, f.", a: "astrologie"},
+	{q: "astrónomo, m.", a: "astronom"},
+	{q: "astrólogo, m.", a: "astrolog"},
+	{q: "cosmos, m.", a: "vesmír"},
+	{q: "universo, m.", a: "vesmír"},
+	{q: "galaxia, f.", a: "galaxie"},
+	{q: "vía, f. láctea", a: "mléčná dráha"},
+	{q: "nebulosa, f.", a: "mlhovina"},
+	{q: "vacío, m. (cósmico)", a: "vesmírná prázdnota"},
+	{q: "gravedad, f.", a: "gravitace/přitažlivost"},
+	{q: "agujero, m. negro", a: "černá díra"},
+	{q: "estrella, f.", a: "hvězda"},
+	{q: "constelación, f.", a: "souhvězdí"},
+	{q: "planeta, m.", a: "planeta"},
+	{q: "meteorito, m.", a: "meteorit"},
+	{q: "cráter, m.", a: "kráter"},
+	{q: "astro, m.", a: "hvězda"},
+	{q: "asteroide, m.", a: "asteroid"},
+	{q: "cuerpo, m. estelar/celeste", a: "vesmírné těleso"},
+	{q: "órbita, f.", a: "oběžná dráha"},
+	{q: "O.V.N.I. (Objeto Volador No Identificado)", a: "UFO"},
+	{q: "satélite, m.", a: "satelit"},
+	{q: "cometa, m. x cometa, f.", a: "kometa x létající drak pro děti"},
+	{q: "cabeza, f.", a: "koma komety"},
+	{q: "núcleo, m.", a: "jádro"},
+	{q: "cola, f, del cometa", a: "chvost/ocas komety"},
+	{q: "cohete, m.", a: "raketa"},
+	{q: "nave, f. espacial", a: "vesmírná loď"},
+	{q: "lanzar", a: "odstartovat"},
+	{q: "lanzamiento, m.", a: "start"},
+	{q: "astronauta, m. y f.", a: "astronaut"},
+	{q: "cosmonauta, m. y f.", a: "kosmonaut"},
+	{q: "cosmódromo, m.", a: "kosmodrom"},
+	{q: "proyecto, m. espacial", a: "vesmírný projekt"},
+	{q: "observatorio, m. (astronómico)", a: "astronomická observatoř"},
+	{q: "telescopio, m.", a: "teleskop"},
+	{q: "planetario, m.", a: "planetárium"},
+	{q: "sistema, m. solar", a: "sluneční soustava"},
+	{q: "Sol, m.", a: "Slunce"},
+	{q: "Mercurio, m.", a: "Merkur"},
+	{q: "Venus, m.", a: "Venuše"},
+	{q: "Tierra, f.", a: "Země"},
+	{q: "Marte, m.", a: "Mars"},
+	{q: "Júpiter, m.", a: "Jupiter"},
+	{q: "Saturno, m.", a: "Saturn"},
+	{q: "Urano, m.", a: "Uran"},
+	{q: "Neptuno, m.", a: "Neptun"},
+	{q: "Plutón, m.", a: "Pluto"},
+	{q: "Estrella, f. Polar", a: "Polárka"},
+	{q: "Lucero, m. del Alba", a: "jitřenka (Venuše)"},
+	{q: "Osa, f. Mayor/ El Carro, m.", a: "vela medvědice/velký vůz"},
+	{q: "Osa, f. Menor", a: "malá medvědice"},
+	{q: "Luna, f.", a: "Měsíc"},
+	{q: "fase, f.", a: "fáze"},
+	{q: "luna, f. nueva, media luna, f. / cuarto, m. creciente x menguante", a: "nov, půlměsíc/ první x poslední čtvrť"},
+	{q: "luna, f. llena", a: "úplněk"},
+	{q: "signo, m. del zodíaco", a: "znak zvěrokruhu"},
+	{q: "aries, m.", a: "beran"},
+	{q: "tauro, m.", a: "býk"},
+	{q: "géminis, m.", a: "blíženci"},
+	{q: "cáncer, m.", a: "rak"},
+	{q: "leo, m.", a: "lev"},
+	{q: "virgo, f.", a: "panna"},
+	{q: "libra, f.", a: "váha"},
+	{q: "escorpión, m.", a: "štír"},
+	{q: "sagitario, m.", a: "střelec"},
+	{q: "capricornio, m.", a: "kozoroh"},
+	{q: "acuario, m.", a: "vodnář"},
+	{q: "piscis, m.", a: "ryby"},
+	{q: "globo, m. terrestre/terráqueo", a: "glóbus/model země"},
+	{q: "corteza, f. terrestre/litosfera, f.", a: "zemská kůra/litosféra"},
+	{q: "hidrosfera, f.", a: "hydrosféra"},
+	{q: "ionosfera, f.", a: "ionosféra"},
+	{q: "capa, f. atmosférica", a: "atmosférica vrstva"},
+	{q: "capa, f. terrestre", a: "zemská vrstva"},
+	{q: "núcleo, m. terrestre", a: "zemské jádro"},
+	{q: "era, f. / época, f. primaria, secundaria, terciaria, cuaternaria", a: "éra/epocha, prvohory, druhohory, třetihory, čtvrtohory"},
+	{q: "fósil, m.", a: "fosilie"},
+	{q: "suelo, m.", a: "půda"},
+	{q: "subsuelo, m.", a: "podloží"},
+	{q: "piedra, f.", a: "kámen"},
+	{q: "arena, f.", a: "písek"},
+	{q: "roca, f.", a: "hornina"},
+	{q: "peña, f.", a: "skála"},
+	{q: "granito, m.", a: "žula"},
+	{q: "turba, f.", a: "rašelina"},
+	{q: "terreno, m. arcilloso", a: "jílovitá půda"},
+	{q: "terreno, m. calizo", a: "vápencová půda"},
+	{q: "terreno, m. pantanoso", a: "bažinatá půda"},
+	{q: "topografía, f.", a: "topografie"},
+	{q: "zona, f. tórrida", a: "tropické pásmo"},
+	{q: "zona, f. templada", a: "mírné pásmo"},
+	{q: "zona, f. glacial", a: "polární pásmo"},
+	{q: "continente, m.", a: "kontinent"},
+	{q: "subcontinente, m.", a: "subkontinent"},
+	{q: "isla, f.", a: "ostrov"},
+	{q: "islote, m.", a: "ostrůvek"},
+	{q: "archipiélago, m.", a: "souostroví"},
+	{q: "península, f.", a: "poloostrov"},
+	{q: "istmo, m.", a: "šíje"},
+	{q: "cabo, m.", a: "mys"},
+	{q: "estrecho, m.", a: "průliv"},
+	{q: "accidente, m. geográfico", a: "geomorfologický tvar"},
+	{q: "litoral, m.", a: "litorál"},
+	{q: "costa, f.", a: "pobřeží"},
+	{q: "ribera, f.", a: "nábřeží"},
+	{q: "orilla, f.", a: "břeh"},
+	{q: "golfo, m.", a: "záliv"},
+	{q: "bahía, f./ensenada, f.", a: "zátoka"},
+	{q: "playa, f. arenosa", a: "písečná pláž"},
+	{q: "playa, f. pedregosa", a: "kamenitá pláž"},
+	{q: "fiordo, m.", a: "fjord"},
+	{q: "boya, f.", a: "bóje/bójka"},
+	{q: "faro, m.", a: "maják"},
+	{q: "arrecife, m.", a: "korálový útes"},
+	{q: "acantilado, m.", a: "útes"},
+	{q: "mar, m.", a: "moře"},
+	{q: "océano, m.", a: "oceán"},
+	{q: "pleamar, f. x bajamar, f.", a: "příliv x odliv"},
+	{q: "altamar, f.", a: "širé moře, otevřené moře"},
+	{q: "ola, f.", a: "vlna"},
+	{q: "cresta, f.", a: "hřeben vlny"},
+	{q: "espuma, f.", a: "pěna"},
+	{q: "corriente, f. marina fría x cálida", a: "studený x teplý mořský proud"},
+	{q: "mar, f. en calma x brava, embravecida", a: "klidné x bouřlivé, rozbouřené moře"},
+	{q: "marejada, f.", a: "příboj"},
+	{q: "temporal, m.", a: "bouře"},
+	{q: "relieve, m. escarpado", a: "strmý reliéf"},
+	{q: "relieve, m. montañoso", a: "hornatý reliéf"},
+	{q: "relieve, m. llano", a: "rovinatý reliéf"},
+	{q: "paisaje, m. terrestre", a: "suchozemská krajina"},
+	{q: "paisaje, m. acuático", a: "vodní krajina"},
+	{q: "paisaje, m. marino", a: "mořská krajina"},
+	{q: "desierto, m.", a: "poušť"},
+	{q: "sabana, f.", a: "savana"},
+	{q: "tundra, f.", a: "tundra"},
+	{q: "selva, f.", a: "prales"},
+	{q: "bosque, m.", a: "les"},
+	{q: "arboleda, f.", a: "háj"},
+	{q: "prado, m.", a: "louka, pastvina"},
+	{q: "pradera, f.", a: "louka (přírodního původu)"},
+	{q: "claro, m.", a: "mýtina"},
+	{q: "sistema, m. montañoso", a: "horské pásmo, pohoří"},
+	{q: "cadena, f.(de montaña)", a: "horský pás"},
+	{q: "cordillera, f.", a: "pohoří"},
+	{q: "sierra, f.", a: "hory, pohoří"},
+	{q: "volcán, m.", a: "vulkán, sopka"},
+	{q: "falla, f.", a: "tektonický zlom"},
+	{q: "fosa, f.", a: "příkop"},
+	{q: "montaña, f.", a: "hora"},
+	{q: "monte, m.", a: "kopec, hora"},
+	{q: "colina, f.", a: "kopec"},
+	{q: "montículo, m.", a: "pahorek"},
+	{q: "pendiente, f. suave x escarpada", a: "mírný x strmý svah"},
+	{q: "falda, f., cima, f./cúspide, f../pico, m.", a: "úpatí, vrchol"},
+	{q: "pared, f.", a: "stěna/štít"},
+	{q: "cañón, m.", a: "kaňon"},
+	{q: "garganta, f.", a: "soutěska, rokle"},
+	{q: "desfiladero, m.", a: "průsmyk"},
+	{q: "hoz, f.", a: "soutěska, kaňon"},
+	{q: "despeñadero, m.", a: "útes"},
+	{q: "barranco, m.", a: "rokle, strž"},
+	{q: "quebrada, f.", a: "soutěska"},
+	{q: "valle, m.", a: "údolí"},
+	{q: "llanura, f.", a: "rovina"},
+	{q: "planicie, f.", a: "pláň"},
+	{q: "altiplanicie, f.", a: "náhorní plošina"},
+	{q: "meseta, f.", a: "(náhorní) plošina"},
+	{q: "macizo, m.", a: "masiv"},
+	{q: "cueva, f.", a: "jeskyně"},
+	{q: "gruta, f.", a: "jeskyně, sluj"},
+	{q: "agua, f. corriente x estancada", a: "tekoucí x stojatá voda"},
+	{q: "fuente, f.", a: "pramen, zdroj"},
+	{q: "manantial, m.", a: "pramen"},
+	{q: "arroyo, m.", a: "potok, potůček"},
+	{q: "río, m. (no) navegable", a: "(ne)splavná řeka"},
+	{q: "vega, f.", a: "říční niva"},
+	{q: "cauce, m.", a: "koryto"},
+	{q: "lecho, m.", a: "řečiště"},
+	{q: "meandro, m.", a: "zákruta, meandr"},
+	{q: "nacimiento, m.", a: "pramen"},
+	{q: "desembocadura, f.", a: "ústí"},
+	{q: "delta, m.", a: "delta (typ ústí)"},
+	{q: "afluente, m.", a: "přítok"},
+	{q: "lago, m.", a: "jezero"},
+	{q: "laguna, f.", a: "laguna"},
+	{q: "estanque, m.", a: "rybník"},
+	{q: "pantano, m.", a: "bažina, močál"},
+	{q: "embalse, m.", a: "vodní nádrž"},
+	{q: "presa, f.", a: "přehrada"},
+	{q: "cenote m.", a: "krasové jezero"},
+	{q: "mapa, m. geográfico", a: "fyzická (geografická) mapa"},
+	{q: "mapa, m. topográfico", a: "topografická mapa"},
+	{q: "mapa, m. político", a: "politická mapa"},
+	{q: "mapamundi, m.", a: "mapa světa"},
+	{q: "escala, f. de 1:7.000.000", a: "měřítko 1:7 000 000"},
+	{q: "coordenada, f.", a: "souřadnice"},
+	{q: "paralelo, m.", a: "rovnoběžka"},
+	{q: "meridiano, m.", a: "poledník"},
+	{q: "ecuador, m./paralelo, m. cero", a: "nultá rovnoběžka, rovník"},
+	{q: "trópico, m. de Cáncer/de Capricornio", a: "obratník raka/kozoroha"},
+	{q: "círculo, m. polar ártico", a: "severní polární kruh"},
+	{q: "círculo, m. polar antártico", a: "jižní polární kruh"},
+	{q: "Polo, m. Norte", a: "Severí pól"},
+	{q: "Polo, m. Sur", a: "jižní pól"},
+	{q: "Antártida, f.", a: "Antarktida"},
+	{q: "Ártico, m.", a: "Arktida"},
+	{q: "grado, m. de longitud", a: "stupeň zeměpisné délky"},
+	{q: "grado, m. de latitud", a: "stupeň zeměpisné šířky"},
+	{q: "septentrional", a: "severní"},
+	{q: "meridional", a: "jižní"},
+	{q: "brújula, f.", a: "kompas"},
+	{q: "compás, m.", a: "kružítko"},
+	{q: "sismología, f.", a: "seismologie"},
+	{q: "sismógrafo, m.", a: "seismograf"},
+	{q: "onda, f. sísmica, f.", a: "seismická vlna"},
+	{q: "ola, f. sísmica", a: "vlna vyvolaná seismickou aktivitou (tsunami)"},
+	{q: "hipocentro, m.", a: "hypocentrum"},
+	{q: "epicentro, m.", a: "epicentrum"},
+	{q: "vibración, f. sísmica", a: "seismické chvění"},
+	{q: "choque, m. sísmico", a: "seismický otřes"},
+	{q: "movimiento, m. sísmico,", a: "seismický pohyb"},
+	{q: "terremoto, m.", a: "zemětřesení"},
+	{q: "maremoto, m.", a: "zemětřesení pod mořskou hladinou"},
+	{q: "terremoto, m. tectónico/por hundimiento", a: "tektonické zemětřesení"},
+	{q: "terremoto, m. volcánico", a: "vulkanické zemětřesení"},
+	{q: "actividad, f. volcánica", a: "vulkanická aktivita"},
+	{q: "volcán, m. activo x apagado", a: "aktivní x vyhaslý vulkán"},
+	{q: "volcán, m. subterráneo", a: "podmořský vulkán"},
+	{q: "cráter, m.", a: "kráter, kaldera"},
+	{q: "río, m./corriente, f. de lava, magma, m.", a: "lávová, magmatická řeka/proud lávy, magmatu"},
+	{q: "falla, f.", a: "praskliny"},
+	{q: "desprendimiento, m.", a: "oddělení"},
+	{q: "deslizamiento, m.", a: "sesuv"},
+	{q: "fisura, f.", a: "prasklina"},
+	{q: "catástrofe, f.", a: "katastrofa"},
+	{q: "diluvio, m.", a: "liják"},
+	{q: "inundación, f.", a: "povodeň"},
+	{q: "incendio, m.", a: "požár"},
+	{q: "huracán, m.", a: "hurikán"},
+	{q: "vendaval, m.", a: "vichřice"},
+	{q: "tifón, m.", a: "tajfun"},
+	{q: "galerna, f.", a: "bouře"},
+	{q: "medioambiente, m.", a: "životní prostředí"},
+	{q: "polución, f./contaminación, f. atmosférica, hídrica/del agua, acústica, lumínica", a: "atmosférické, vodní, akustické, světelné znečistění"},
+	{q: "conservación, f.", a: "ochrana"},
+	{q: "protección, f. de la naturaleza", a: "ochrana přírody"},
+	{q: "impacto, m. ecológico/medioambiental", a: "ekologický dopad/vliv na životní prostředí"},
+	{q: "deterioro, m. ecológico", a: "poškození životního prostředí"},
+	{q: "emisión, f.", a: "emise"},
+	{q: "producto, m.", a: "produkt"},
+	{q: "vertido, m. químico dañino", a: "škodlivý chemický únik"},
+	{q: "material, m. radioactivo", a: "radioaktivní materiál"},
+	{q: "deshecho, m. radioactivo", a: "radioaktivní odpad"},
+	{q: "accidente, m./avería, f. del petrolero, carguero", a: "havárie ropného tankeru"},
+	{q: "energía, f. nuclear", a: "jaderná energie"},
+	{q: "energía, f. alternativa / renovable", a: "alternativní/obnovitelná energie"},
+	{q: "energía, f. eólica, solar, hidráulica, mareomotriz", a: "větrná, solární, vodní, přílivová energie"},
+	{q: "combustible, m. fósil", a: "fosilní palivo"},
+	{q: "gas, m.", a: "plyn"},
+	{q: "material, m. tóxico", a: "toxický materiál"},
+	{q: "material, m. de escape", a: "výfukové plyny"},
+	{q: "aerosol, m.", a: "aerosol"},
+	{q: "radiación, f. ultravioleta", a: "ultrafialové záření"},
+	{q: "agujero, m. en la capa de ozono", a: "díra v ozonové vrstvě"},
+	{q: "corrosión, f.", a: "koroze"},
+	{q: "efecto, m. invernadero", a: "skleníkový efekt"},
+	{q: "desestabilización, f. del clima", a: "destabilizace klimatu"},
+	{q: "cambio m., crisis f. climático/-a", a: "změna klimatu, klimatická krize"},
+	{q: "calentamiento, m. de la atmósfera/atmosférico, global", a: "globální oteplování atmosféry"},
+	{q: "especie, f. en vía de extinción/desaparición", a: "kriticky ohrožený živočišný druh"},
+	{q: "captura, f. de animales", a: "chytání zvěře"},
+	{q: "reducir", a: "omezit"},
+	{q: "reutilizar,", a: "znovu najít využití"},
+	{q: "reciclar", a: "recyklovat"},
+	{q: "reciclaje m.", a: "recyklace"},
+	{q: "** ver las estrellas", a: "vidět hvězdičky (po úderu, pádu)"},
+	{q: "** tener estrella", a: "mít štěstí"},
+	{q: "** estrellarse", a: "mít smůlu"},
+	{q: "** una estrella", a: "hvězda"},
+	{q: "** ir como un cohete", a: "jde to jako po másle"},
+	{q: "** arrimarse alguien al sol que más calienta", a: "kam vítor, tam plášť"},
+	{q: "** no dejar a alguien ni a sol ni a sombra", a: "být někomu v patách"},
+	{q: "** ser un sol/solete", a: "být poklad"},
+	{q: "** estar en la luna", a: "být mimo"},
+	{q: "** pedir la luna", a: "chtít podré z nebe"},
+	{q: "** no dejar piedra sobre piedra", a: "nenechat kámen na kameni"},
+	{q: "** piedra de escándalo", a: "kámen úrazu"},
+	{q: "** tirar (alguien) la piedra y esconder la mano", a: "kázat vodu a pía víno"},
+	{q: "** tirar (alguien) piedras contra su propio tejado", a: "řezat si pod sebou větev"},
+	{q: "** hasta las piedras", a: "vědí to i vrabci na střeše"},
+	{q: "** hablar de la mar", a: "mluvit o moři a nebýt v něm"},
+	{q: "** haber algo a mares / a raudales", a: "mít něčeho na rozdávání"},
+	{q: "** estar hecho un mar de lágrimas", a: "mít oči pro pláč"},
+	{q: "** llorar a mares", a: "brečet jako želva"},
+	{q: "** estar en la cresta de la ola", a: "být na vrcholu"},
+	{q: "** estar macizo/a", a: "být kus, kočka"},
+	{q: "** tener una laguna", a: "mít výpadek, mít okno"},
+	{q: "** dar relieve a algo", a: "sobré slovo i železná vrata otvírá"},
+	{q: "** si el río suena, agua lleva", a: "nene kouře bez ohně"},
+	{q: "** borrar del mapa", a: "smazat ze země, srovnat se zemí"},
+	{q: "** el ecuador de algo", a: "lepší vrabec v hrsti než holub na střeše"},
+	{q: "** perder el norte", a: "ztratit hlavu"},
+	{q: "** estar sobre un volcán", a: "sedět na sopce"},
+    ];
+
+    // Listas dinámicas para clasificar palabras
+    let palabrasNoConozco = [...todasLasPalabras];
+    let palabrasYaConozco = [];
+
+    let filaActiva = 'no'; // Puede ser 'no' (por aprender) o 'si' (ya aprendidas)
+    let idx = 0;
+
+    const cardEl = document.getElementById('c');
+    const qEl = document.getElementById('q');
+    const aEl = document.getElementById('a');
+    const sEl = document.getElementById('status');
+
+    function getListaActiva() {
+        return filaActiva === 'no' ? palabrasNoConozco : palabrasYaConozco;
+    }
+
+    function update() {
+        const lista = getListaActiva();
+        cardEl.classList.remove('flipped');
+        
+        // Actualizar contadores en los botones superiores
+        document.getElementById('count-no').innerText = palabrasNoConozco.length;
+        document.getElementById('count-si').innerText = palabrasYaConozco.length;
+
+        if (lista.length === 0) {
+            qEl.innerText = "¡Lista vacía!";
+            aEl.innerText = filaActiva === 'no' ? "¡Felicidades, te sabes todas las palabras!" : "No has añadido ninguna palabra aquí aún.";
+            sEl.innerText = "0 / 0";
+            return;
+        }
+
+        // Asegurar que el índice no se salga del rango tras borrar/mover elementos
+        if (idx >= lista.length) {
+            idx = Math.max(0, lista.length - 1);
+        }
+
+        setTimeout(() => {
+            qEl.innerText = lista[idx].q;
+            aEl.innerText = lista[idx].a;
+            sEl.innerText = `${idx + 1} / ${lista.length}`;
+        }, 100);
+    }
+
+    function flip() { 
+        const lista = getListaActiva();
+        if (lista.length > 0) cardEl.classList.toggle('flipped'); 
+    }
+    
+    function next() { 
+        const lista = getListaActiva();
+        if(idx < lista.length - 1) { idx++; update(); } 
+    }
+    
+    function prev() { 
+        if(idx > 0) { idx--; update(); } 
+    }
+
+    function shuffle() {
+        const lista = getListaActiva();
+        if (lista.length > 0) {
+            lista.sort(() => Math.random() - 0.5);
+            idx = 0;
+            update();
+        }
+    }
+
+    // Cambiar entre la pestaña de "Por aprender" y "Ya aprendidas"
+    function setFila(tipo) {
+        filaActiva = tipo;
+        idx = 0;
+        
+        // Estilos visuales para los botones superiores
+        if (tipo === 'no') {
+            document.getElementById('btn-fila-no').classList.add('active');
+            document.getElementById('btn-fila-si').classList.remove('active');
+        } else {
+            document.getElementById('btn-fila-no').classList.remove('active');
+            document.getElementById('btn-fila-si').classList.add('active');
+        }
+        
+        update();
+    }
+
+    // Mover palabras de una fila a otra
+    function clasificarPalabra(loSabe) {
+        let listaOrigen = filaActiva === 'no' ? palabrasNoConozco : palabrasYaConozco;
+        let listaDestino = filaActiva === 'no' ? palabrasYaConozco : palabrasNoConozco;
+
+        if (listaOrigen.length === 0) return;
+
+        // Si la clasificación coincide con donde ya está, simplemente avanza a la siguiente tarjeta
+        if ((filaActiva === 'no' && !loSabe) || (filaActiva === 'si' && loSabe)) {
+            next();
+            return;
+        }
+
+        // De lo contrario, extraemos el elemento actual y lo pasamos a la otra lista
+        const palabraMovida = listaOrigen.splice(idx, 1)[0];
+        listaDestino.push(palabraMovida);
+
+        update();
+    }
+
+    // Accesos por teclado
+    document.addEventListener('keydown', (e) => {
+        if(e.code === 'ArrowRight') next();
+        if(e.code === 'ArrowLeft') prev();
+        if(e.code === 'Space') flip();
+    });
+
+    update();
+</script>
+</body>
+</html>
